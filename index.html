@@ -9,12 +9,11 @@
   </style>
 </head>
 <body>
-<canvas id="game" width="480" height="720"></canvas>
+<canvas id="game" width="480" height="960"></canvas>
 <script>
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-// ==== CONFIG ====
 let gameStarted = false;
 let characterName = "";
 let characterEmoji = "";
@@ -25,51 +24,55 @@ let stage = 1;
 let score = 0;
 let invincible = true;
 let timeSinceStart = 0;
-const gravity = 0.5;
-const jumpForce = -12;
-const platformSpeed = 2;
+const gravity = 0.4;
+const baseJumpForce = -18;
+const platformSpeed = 1.2;
 
 const characters = [
-  { name: "Sheidi", color: "#3498db", emoji: "🦊" },
-  { name: "Welix", color: "#e74c3c", emoji: "🐸" },
-  { name: "Bile", color: "#2ecc71", emoji: "🐱" },
-  { name: "Jerry", color: "#9b59b6", emoji: "🐵" },
-  { name: "Thaat", color: "#f1c40f", emoji: "🐧" }
+  { name: "Sheidi", emoji: "🦊" },
+  { name: "Welix", emoji: "🐸" },
+  { name: "Bile", emoji: "🐱" },
+  { name: "Jerry", emoji: "🐵" },
+  { name: "Thaat", emoji: "🐧" }
 ];
 
 const player = {
-  x: 200, y: 600,
-  width: 40, height: 40,
-  vy: jumpForce,
+  x: 200,
+  y: 800,
+  width: 40,
+  height: 40,
+  vy: baseJumpForce,
   onPlatform: false,
   jumpsFailed: 0,
-  color: "#000"
+  canSlash: true
 };
 
-const monster = { y: 9999, speed: 0.5 };
+const monster = { y: 9999, speed: 0.3 };
 
 let platforms = [];
-
-// ==== FUNÇÕES ====
+let keyPresses = {};
+let lastKeyTime = { ArrowLeft: 0, ArrowRight: 0 };
 
 function generatePlatforms() {
   platforms = [];
   for (let i = 0; i < 6; i++) {
     platforms.push({
       x: Math.random() * 360,
-      y: 720 - i * 110,
+      y: 960 - i * 150,
       width: 120,
       height: 10,
-      item: Math.random() < 0.15 ? ["🍌", "🍒", "🍓"][Math.floor(Math.random() * 3)] : null,
+      boost: Math.random() < 0.1,
+      item: Math.random() < 0.15 ? ["🍌", "🍒", "🍓"][Math.floor(Math.random() * 3)] : null
     });
   }
 }
 
 function resetPlayer() {
   player.x = 200;
-  player.y = 600;
-  player.vy = jumpForce;
+  player.y = 800;
+  player.vy = baseJumpForce;
   player.jumpsFailed = 0;
+  player.canSlash = true;
   timeSinceStart = 0;
   invincible = true;
   monster.y = 9999;
@@ -111,10 +114,22 @@ function update() {
   player.vy += gravity;
   player.y += player.vy;
 
-  // Monstro sobe
-  monster.y -= monster.speed + stage * 0.05;
+  // dash/slash lateral
+  if (!player.onPlatform) {
+    ["ArrowLeft", "ArrowRight"].forEach((key) => {
+      if (keyPresses[key]) {
+        const now = performance.now();
+        if (now - lastKeyTime[key] < 300 && player.canSlash) {
+          player.x += key === "ArrowLeft" ? -80 : 80;
+          player.canSlash = false;
+        }
+        lastKeyTime[key] = now;
+        keyPresses[key] = false;
+      }
+    });
+  }
 
-  // Colisão com plataformas
+  // colisão com plataforma
   player.onPlatform = false;
   for (const plat of platforms) {
     if (
@@ -126,7 +141,8 @@ function update() {
     ) {
       player.onPlatform = true;
       player.y = plat.y - player.height;
-      player.vy = jumpForce;
+      player.vy = plat.boost ? baseJumpForce * 1.4 : baseJumpForce;
+      player.canSlash = true;
       if (plat.item) {
         score++;
         plat.item = null;
@@ -134,35 +150,35 @@ function update() {
     }
   }
 
-  // Se cair e estiver em invencibilidade, pula automaticamente
   if (player.y + player.height > canvas.height && invincible) {
-    player.vy = jumpForce * 1.4;
+    player.vy = baseJumpForce * 1.4;
     player.y = canvas.height - player.height;
   }
 
-  // Se caiu depois da proteção, morre
   if (player.y + player.height > canvas.height && !invincible) {
     loseLife();
   }
 
-  // Monstro pega
   if (monster.y < player.y + player.height && !invincible) {
     loseLife();
   }
 
-  // Atualiza plataformas
+  // move plataformas
   platforms.forEach(p => p.y += platformSpeed);
   platforms = platforms.filter(p => p.y < canvas.height + 50);
   while (platforms.length < 6) {
     const lastY = platforms[platforms.length - 1].y;
     platforms.push({
       x: Math.random() * 360,
-      y: lastY - 110,
+      y: lastY - 150,
       width: 120,
       height: 10,
-      item: Math.random() < 0.15 ? ["🍌", "🍒", "🍓"][Math.floor(Math.random() * 3)] : null,
+      boost: Math.random() < 0.1,
+      item: Math.random() < 0.15 ? ["🍌", "🍒", "🍓"][Math.floor(Math.random() * 3)] : null
     });
   }
+
+  monster.y -= monster.speed + stage * 0.05;
 }
 
 function draw() {
@@ -181,28 +197,25 @@ function draw() {
     ctx.font = "20px Arial";
     ctx.fillText("Escolha seu personagem:", 100, 60);
     characters.forEach((c, i) => {
-      ctx.fillStyle = c.color;
-      ctx.fillRect(60, 100 + i * 90, 60, 60);
-      ctx.fillStyle = "black";
-      ctx.font = "20px Arial";
-      ctx.fillText(`${i + 1} - ${c.name} ${c.emoji}`, 140, 135 + i * 90);
+      ctx.font = "40px Arial";
+      ctx.fillText(`${i + 1} - ${c.emoji}`, 180, 140 + i * 80);
+      ctx.font = "18px Arial";
+      ctx.fillText(c.name, 240, 145 + i * 80);
     });
     return;
   }
 
-  // Personagem
-  ctx.fillStyle = player.color;
-  ctx.fillRect(player.x, player.y, player.width, player.height);
-  ctx.font = "24px Arial";
-  ctx.fillText(characterEmoji, player.x + 10, player.y + 28);
+  // personagem como emoji
+  ctx.font = "32px Arial";
+  ctx.fillText(characterEmoji, player.x + 8, player.y + 30);
 
-  // Monstro
+  // monstro
   ctx.fillStyle = "red";
   ctx.fillRect(player.x, monster.y, player.width, player.height);
 
-  // Plataformas
+  // plataformas
   platforms.forEach(p => {
-    ctx.fillStyle = "green";
+    ctx.fillStyle = p.boost ? "#00f" : "#228B22";
     ctx.fillRect(p.x, p.y, p.width, p.height);
     if (p.item) {
       ctx.fillStyle = "black";
@@ -223,14 +236,16 @@ document.addEventListener("keydown", (e) => {
     const char = characters[parseInt(e.key) - 1];
     characterName = char.name;
     characterEmoji = char.emoji;
-    player.color = char.color;
     gameStarted = true;
     resetPlayer();
     return;
   }
 
-  if (e.key === "ArrowLeft") player.x -= 40;
-  if (e.key === "ArrowRight") player.x += 40;
+  if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+    keyPresses[e.key] = true;
+    if (e.key === "ArrowLeft") player.x -= 40;
+    if (e.key === "ArrowRight") player.x += 40;
+  }
 });
 
 gameLoop();
