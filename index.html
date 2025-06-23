@@ -9,192 +9,211 @@
   </style>
 </head>
 <body>
-  <canvas id="game" width="480" height="720"></canvas>
-  <script>
-    const canvas = document.getElementById("game");
-    const ctx = canvas.getContext("2d");
+<canvas id="game" width="480" height="720"></canvas>
+<script>
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
 
-    let currentFloor = 1;
-    let lives = 3;
-    let timeLeft = 60;
-    let stage = 1;
-    let score = 0;
-    let characterName = "";
-    let gameStarted = false;
-    let invincibleTime = 10; // 10 segundos de proteção no início
-    let timeSinceStart = 0;
+  const characters = ["Sheidi", "Welix", "Bile", "Jerry", "Thaat"];
 
-    const characters = ["Sheidi", "Welix", "Bile", "Jerry", "Thaat"];
+  let gameStarted = false;
+  let characterName = "";
+  let currentFloor = 1;
+  let lives = 3;
+  let timeLeft = 60;
+  let stage = 1;
+  let score = 0;
+  let invincible = true;
+  let timeSinceStart = 0;
 
-    const player = {
-      x: 200,
-      y: 600,
-      width: 40,
-      height: 40,
-      vy: 0,
-      gravity: 0.8,
-      jumpForce: -16,
-      onPlatform: false,
-      jumpsFailed: 0,
-    };
+  const player = {
+    x: 200,
+    y: 600,
+    width: 40,
+    height: 40,
+    vy: -20,
+    gravity: 0.8,
+    jumpForce: -20,
+    onPlatform: false,
+    jumpsFailed: 0,
+  };
 
-    const monster = { y: 9999, speed: 0.8 };
-    let platforms = [];
+  const monster = {
+    y: 9999,
+    speed: 0.8
+  };
 
-    function generatePlatforms() {
-      platforms = [];
-      for (let i = 0; i < 6; i++) {
-        platforms.push({
-          x: Math.random() * 380,
-          y: i * 120,
-          width: 100,
-          height: 10,
-          item: Math.random() < 0.2 ? ["🍌", "🍒", "🍓"][Math.floor(Math.random() * 3)] : null,
-        });
-      }
+  let platforms = [];
+
+  function generatePlatforms() {
+    platforms = [];
+    for (let i = 0; i < 8; i++) {
+      platforms.push({
+        x: Math.random() * 380,
+        y: 720 - i * 90,
+        width: 100,
+        height: 10,
+        item: Math.random() < 0.2 ? ["🍌", "🍒", "🍓"][Math.floor(Math.random() * 3)] : null,
+      });
     }
+  }
 
-    function resetPlayer() {
-      player.x = 200;
-      player.y = 600;
-      player.vy = -18; // pulo inicial
-      player.jumpsFailed = 0;
-      monster.y = player.y + 1000;
-      timeSinceStart = 0;
-      generatePlatforms();
+  function resetPlayer() {
+    player.x = 200;
+    player.y = 600;
+    player.vy = -20;
+    player.jumpsFailed = 0;
+    timeSinceStart = 0;
+    invincible = true;
+    monster.y = 9999;
+    generatePlatforms();
+  }
+
+  function loseLife() {
+    if (invincible) return;
+    lives--;
+    if (lives <= 0) {
+      alert("GAME OVER");
+      lives = 3;
+      score = 0;
+      currentFloor = 1;
+      stage = 1;
     }
+    resetPlayer();
+  }
 
-    function loseLife() {
-      if (timeSinceStart < invincibleTime) return;
-      lives--;
-      if (lives <= 0) {
-        alert("GAME OVER. Recomeçando...");
-        lives = 3;
-        score = 0;
-        currentFloor = 1;
-        stage = 1;
-      }
-      resetPlayer();
+  function nextStage() {
+    stage++;
+    if (stage > 2) {
+      stage = 1;
+      currentFloor++;
     }
+    timeLeft = 60;
+    resetPlayer();
+  }
 
-    function nextStage() {
-      stage++;
-      if (stage > 2) {
-        stage = 1;
-        currentFloor++;
-      }
-      timeLeft = 60;
-      resetPlayer();
-    }
+  function update() {
+    if (!gameStarted) return;
 
-    function update() {
-      if (!gameStarted) return;
+    timeSinceStart += 1 / 60;
+    if (timeSinceStart > 10) invincible = false;
 
-      timeSinceStart += 1 / 60;
-      timeLeft -= 1 / 60;
-      if (timeLeft <= 0) nextStage();
+    timeLeft -= 1 / 60;
+    if (timeLeft <= 0) nextStage();
 
-      // Monstro sobe
-      monster.y -= monster.speed + stage * 0.2;
+    player.vy += player.gravity;
+    player.y += player.vy;
 
-      // Verifica se o monstro pegou
-      if (monster.y < player.y + player.height && timeSinceStart >= invincibleTime) {
-        loseLife();
-      }
+    // câmera segue personagem
+    const cameraY = Math.min(0, 360 - player.y);
+    ctx.setTransform(1, 0, 0, 1, 0, cameraY);
 
-      // Gravidade e movimento vertical
-      player.vy += player.gravity;
-      player.y += player.vy;
+    monster.y -= monster.speed + stage * 0.2;
 
-      player.onPlatform = false;
-      for (const plat of platforms) {
-        if (
-          player.y + player.height >= plat.y &&
-          player.y + player.height <= plat.y + plat.height &&
-          player.x + player.width > plat.x &&
-          player.x < plat.x + plat.width &&
-          player.vy >= 0
-        ) {
-          player.onPlatform = true;
-          player.y = plat.y - player.height;
-          player.vy = player.jumpForce;
-          if (plat.item) {
-            score++;
-            plat.item = null;
-          }
-        }
-      }
-
-      // Se não está em plataforma e ainda está nos 10s de invencibilidade, pula automaticamente
-      if (!player.onPlatform && timeSinceStart < invincibleTime && player.y + player.height >= canvas.height) {
-        player.vy = player.jumpForce * 1.5; // força maior para subir 2 degraus
-      }
-
-      // Se caiu e não está invencível
-      if (player.y + player.height > canvas.height && timeSinceStart >= invincibleTime) {
-        loseLife();
-      }
-
-      // Sobe o cenário
-      platforms.forEach((p) => (p.y += 4));
-    }
-
-    function draw() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      if (!gameStarted) {
-        ctx.fillStyle = "black";
-        ctx.font = "24px Arial";
-        ctx.fillText("Escolha seu personagem:", 100, 100);
-        characters.forEach((c, i) => {
-          ctx.fillText(`${i + 1} - ${c}`, 160, 150 + i * 40);
-        });
-        return;
-      }
-
-      // HUD
-      ctx.fillStyle = "black";
-      ctx.font = "16px Arial";
-      ctx.fillText(
-        `Personagem: ${characterName} | Vidas: ${lives} | Andar: ${currentFloor} | Tempo: ${Math.floor(timeLeft)} | Itens: ${score}`,
-        10,
-        20
-      );
-
-      ctx.fillStyle = "blue";
-      ctx.fillRect(player.x, player.y, player.width, player.height);
-
-      ctx.fillStyle = "red";
-      ctx.fillRect(player.x, monster.y, player.width, player.height);
-
-      for (const plat of platforms) {
-        ctx.fillStyle = "green";
-        ctx.fillRect(plat.x, plat.y, plat.width, plat.height);
+    // colisão com plataforma
+    player.onPlatform = false;
+    for (const plat of platforms) {
+      if (
+        player.y + player.height <= plat.y + 10 &&
+        player.y + player.height >= plat.y &&
+        player.x + player.width > plat.x &&
+        player.x < plat.x + plat.width &&
+        player.vy >= 0
+      ) {
+        player.onPlatform = true;
+        player.y = plat.y - player.height;
+        player.vy = player.jumpForce;
         if (plat.item) {
-          ctx.fillText(plat.item, plat.x + 40, plat.y - 5);
+          score++;
+          plat.item = null;
         }
       }
     }
 
-    function gameLoop() {
-      update();
-      draw();
-      requestAnimationFrame(gameLoop);
+    // Se cair e ainda estiver nos 10s iniciais, pula automático
+    if (player.y + player.height > canvas.height && invincible) {
+      player.vy = player.jumpForce * 1.4;
+      player.y = canvas.height - player.height;
     }
 
-    document.addEventListener("keydown", (e) => {
-      if (!gameStarted && ["1", "2", "3", "4", "5"].includes(e.key)) {
-        characterName = characters[parseInt(e.key) - 1];
-        gameStarted = true;
-        resetPlayer();
-        return;
+    // Se caiu depois do tempo, perde vida
+    if (player.y + player.height > canvas.height && !invincible) {
+      loseLife();
+    }
+
+    // monstro pegou
+    if (monster.y < player.y + player.height && !invincible) {
+      loseLife();
+    }
+
+    // atualizar plataformas (descem)
+    platforms.forEach(p => p.y += 4);
+    platforms = platforms.filter(p => p.y < canvas.height + 50);
+    while (platforms.length < 8) {
+      const lastY = platforms[platforms.length - 1].y;
+      platforms.push({
+        x: Math.random() * 380,
+        y: lastY - 90,
+        width: 100,
+        height: 10,
+        item: Math.random() < 0.2 ? ["🍌", "🍒", "🍓"][Math.floor(Math.random() * 3)] : null,
+      });
+    }
+  }
+
+  function draw() {
+    ctx.clearRect(0, -1000, canvas.width, canvas.height + 1000);
+
+    if (!gameStarted) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = "black";
+      ctx.font = "24px Arial";
+      ctx.fillText("Escolha seu personagem:", 100, 100);
+      characters.forEach((c, i) => {
+        ctx.fillText(`${i + 1} - ${c}`, 160, 150 + i * 40);
+      });
+      return;
+    }
+
+    ctx.fillStyle = "black";
+    ctx.font = "16px Arial";
+    ctx.fillText(`Personagem: ${characterName} | Vidas: ${lives} | Andar: ${currentFloor} | Tempo: ${Math.floor(timeLeft)} | Itens: ${score}`, 10, player.y - 340);
+
+    ctx.fillStyle = "blue";
+    ctx.fillRect(player.x, player.y, player.width, player.height);
+
+    ctx.fillStyle = "red";
+    ctx.fillRect(player.x, monster.y, player.width, player.height);
+
+    platforms.forEach(p => {
+      ctx.fillStyle = "green";
+      ctx.fillRect(p.x, p.y, p.width, p.height);
+      if (p.item) {
+        ctx.fillStyle = "black";
+        ctx.fillText(p.item, p.x + 40, p.y - 5);
       }
-
-      if (e.key === "ArrowLeft") player.x -= 50;
-      if (e.key === "ArrowRight") player.x += 50;
     });
+  }
 
-    gameLoop();
-  </script>
+  function gameLoop() {
+    update();
+    draw();
+    requestAnimationFrame(gameLoop);
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (!gameStarted && ["1", "2", "3", "4", "5"].includes(e.key)) {
+      characterName = characters[parseInt(e.key) - 1];
+      gameStarted = true;
+      resetPlayer();
+      return;
+    }
+
+    if (e.key === "ArrowLeft") player.x -= 50;
+    if (e.key === "ArrowRight") player.x += 50;
+  });
+
+  gameLoop();
+</script>
 </body>
 </html>
