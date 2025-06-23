@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Rumbi, Rumbi</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; background: #e0e0e0; }
+  </style>
+</head>
+<body>
+  <canvas id="game" width="480" height="720"></canvas>
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+
+    let currentFloor = 1;
+    let lives = 3;
+    let timeLeft = 60;
+    let stage = 1;
+    let score = 0;
+    let characterName = "Sheidi";
+    const characters = ["Sheidi", "Welix", "Bile", "Jerry", "Thaat"];
+    const player = { x: 200, y: 600, width: 40, height: 40, vy: -12, onPlatform: false, jumpsFailed: 0 };
+    const monster = { y: 720, speed: 0.8 };
+    let platforms = [];
+
+    function generatePlatforms() {
+      platforms = [];
+      for (let i = 0; i < 6; i++) {
+        platforms.push({
+          x: Math.random() * 380,
+          y: i * 120,
+          width: 100,
+          height: 10,
+          item: Math.random() < 0.2 ? ["🍌", "🍒", "🍓"][Math.floor(Math.random() * 3)] : null,
+        });
+      }
+    }
+
+    function resetPlayer() {
+      player.x = 200;
+      player.y = 600;
+      player.jumpsFailed = 0;
+      monster.y = 720;
+      generatePlatforms();
+    }
+
+    function loseLife() {
+      lives--;
+      if (lives <= 0) {
+        alert("GAME OVER. Recomeçando...");
+        lives = 3;
+        score = 0;
+        currentFloor = 1;
+        stage = 1;
+      }
+      resetPlayer();
+    }
+
+    function nextStage() {
+      stage++;
+      if (stage > 2) {
+        stage = 1;
+        currentFloor++;
+      }
+      timeLeft = 60;
+      resetPlayer();
+    }
+
+    function update() {
+      timeLeft -= 1 / 60;
+      if (timeLeft <= 0) nextStage();
+      monster.y -= monster.speed + stage * 0.2;
+      if (monster.y < player.y + player.height) loseLife();
+      player.y += 4;
+      player.onPlatform = false;
+
+      for (const plat of platforms) {
+        if (
+          player.y + player.height >= plat.y &&
+          player.y + player.height <= plat.y + plat.height &&
+          player.x + player.width > plat.x &&
+          player.x < plat.x + plat.width
+        ) {
+          player.onPlatform = true;
+          player.y = plat.y - player.height;
+          player.vy = -12;
+          if (plat.item) {
+            score++;
+            plat.item = null;
+          }
+        }
+      }
+
+      if (!player.onPlatform) {
+        player.jumpsFailed++;
+        if (player.jumpsFailed >= 3) loseLife();
+      } else {
+        player.jumpsFailed = 0;
+      }
+
+      platforms.forEach((p) => (p.y += 4));
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "black";
+      ctx.font = "16px Arial";
+      ctx.fillText(`Personagem: ${characterName} | Vidas: ${lives} | Andar: ${currentFloor} | Tempo: ${Math.floor(timeLeft)} | Itens: ${score}`, 10, 20);
+      ctx.fillStyle = "blue";
+      ctx.fillRect(player.x, player.y, player.width, player.height);
+      ctx.fillStyle = "red";
+      ctx.fillRect(player.x, monster.y, player.width, player.height);
+
+      for (const plat of platforms) {
+        ctx.fillStyle = "green";
+        ctx.fillRect(plat.x, plat.y, plat.width, plat.height);
+        if (plat.item) {
+          ctx.fillText(plat.item, plat.x + 40, plat.y - 5);
+        }
+      }
+    }
+
+    function gameLoop() {
+      update();
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowLeft") player.x -= 50;
+      if (e.key === "ArrowRight") player.x += 50;
+    });
+
+    characterName = characters[Math.floor(Math.random() * characters.length)];
+    resetPlayer();
+    gameLoop();
+  </script>
+</body>
+</html>
