@@ -11,28 +11,35 @@
 <body>
   <canvas id="game" width="480" height="720"></canvas>
   <script>
-    // RUMBI, RUMBI - VERSÃO INICIAL
     const canvas = document.getElementById("game");
     const ctx = canvas.getContext("2d");
-    canvas.width = 480;
-    canvas.height = 720;
 
     let currentFloor = 1;
     let lives = 3;
     let timeLeft = 60;
     let stage = 1;
     let score = 0;
-    let characterName = "Sheidi";
-    let invincibleTimer = 0;
+    let characterName = "";
+    let invincibleTimer = 3;
+    let gameStarted = false;
 
     const characters = ["Sheidi", "Welix", "Bile", "Jerry", "Thaat"];
 
     const player = {
-      x: 200, y: 600, width: 40, height: 40,
-      vy: -12, onPlatform: false, jumpsFailed: 0,
+      x: 200,
+      y: 600,
+      width: 40,
+      height: 40,
+      vy: -12,
+      onPlatform: false,
+      jumpsFailed: 0,
     };
 
-    const monster = { y: 720, speed: 0.8 };
+    const monster = {
+      y: 9999,
+      speed: 0.8,
+    };
+
     let platforms = [];
 
     function generatePlatforms() {
@@ -52,8 +59,8 @@
       player.x = 200;
       player.y = 600;
       player.jumpsFailed = 0;
-      monster.y = player.y + 300;
-      invincibleTimer = 2;
+      monster.y = player.y + 500; // evita morte instantânea
+      invincibleTimer = 3; // 3 segundos de invencibilidade
       generatePlatforms();
     }
 
@@ -80,11 +87,15 @@
     }
 
     function update() {
+      if (!gameStarted) return;
+
       timeLeft -= 1 / 60;
       if (timeLeft <= 0) nextStage();
+
       if (invincibleTimer > 0) invincibleTimer -= 1 / 60;
 
       monster.y -= monster.speed + stage * 0.2;
+
       if (monster.y < player.y + player.height && invincibleTimer <= 0) {
         loseLife();
         invincibleTimer = 2;
@@ -92,6 +103,7 @@
 
       player.y += 4;
       player.onPlatform = false;
+
       for (const plat of platforms) {
         if (
           player.y + player.height >= plat.y &&
@@ -121,12 +133,28 @@
 
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (!gameStarted) {
+        ctx.fillStyle = "black";
+        ctx.font = "24px Arial";
+        ctx.fillText("Escolha seu personagem:", 100, 100);
+        characters.forEach((c, i) => {
+          ctx.fillText(`${i + 1} - ${c}`, 160, 150 + i * 40);
+        });
+        return;
+      }
+
       ctx.fillStyle = "black";
       ctx.font = "16px Arial";
-      ctx.fillText(`Personagem: ${characterName} | Vidas: ${lives} | Andar: ${currentFloor} | Tempo: ${Math.floor(timeLeft)} | Itens: ${score}`, 10, 20);
+      ctx.fillText(
+        `Personagem: ${characterName} | Vidas: ${lives} | Andar: ${currentFloor} | Tempo: ${Math.floor(timeLeft)} | Itens: ${score}`,
+        10,
+        20
+      );
 
       ctx.fillStyle = "blue";
       ctx.fillRect(player.x, player.y, player.width, player.height);
+
       ctx.fillStyle = "red";
       ctx.fillRect(player.x, monster.y, player.width, player.height);
 
@@ -146,12 +174,17 @@
     }
 
     document.addEventListener("keydown", (e) => {
+      if (!gameStarted && ["1", "2", "3", "4", "5"].includes(e.key)) {
+        characterName = characters[parseInt(e.key) - 1];
+        gameStarted = true;
+        resetPlayer();
+        return;
+      }
+
       if (e.key === "ArrowLeft") player.x -= 50;
       if (e.key === "ArrowRight") player.x += 50;
     });
 
-    characterName = characters[Math.floor(Math.random() * characters.length)];
-    resetPlayer();
     gameLoop();
   </script>
 </body>
