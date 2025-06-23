@@ -24,8 +24,8 @@ let stage = 1;
 let score = 0;
 let invincible = true;
 let timeSinceStart = 0;
-const gravity = 0.4;
-const baseJumpForce = -18;
+const gravity = 0.28; // 30% mais lento
+const baseJumpForce = -12.6; // 30% mais lento (antes era -18)
 const platformSpeed = 1.2;
 
 const characters = [
@@ -141,7 +141,7 @@ function update() {
     ) {
       player.onPlatform = true;
       player.y = plat.y - player.height;
-      player.vy = plat.boost ? baseJumpForce * 1.4 : baseJumpForce;
+      player.vy = plat.boost ? baseJumpForce * 1.2 : baseJumpForce;
       player.canSlash = true;
       if (plat.item) {
         score++;
@@ -243,8 +243,8 @@ document.addEventListener("keydown", (e) => {
 
   if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
     keyPresses[e.key] = true;
-    if (e.key === "ArrowLeft") player.x -= 40;
-    if (e.key === "ArrowRight") player.x += 40;
+    if (e.key === "ArrowLeft") player.x -= 80; // movimento lateral dobrado
+    if (e.key === "ArrowRight") player.x += 80; // movimento lateral dobrado
   }
 });
 
