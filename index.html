@@ -25,8 +25,8 @@ let score = 0;
 let invincible = true;
 let timeSinceStart = 0;
 const gravity = 0.4;
-const baseJumpForce = -14; // salto ajustado
-const platformSpeed = 1;
+const baseJumpForce = -18;
+const platformSpeed = 1.2;
 
 const characters = [
   { name: "Sheidi", emoji: "🦊" },
@@ -44,8 +44,7 @@ const player = {
   vy: baseJumpForce,
   onPlatform: false,
   jumpsFailed: 0,
-  canSlash: true,
-  speed: 20 // reduzido para deixar mais lento
+  canSlash: true
 };
 
 const monster = { y: 9999, speed: 0.3 };
@@ -56,12 +55,11 @@ let lastKeyTime = { ArrowLeft: 0, ArrowRight: 0 };
 
 function generatePlatforms() {
   platforms = [];
-  for (let i = 0; i < 8; i++) {
-    const isShort = Math.random() < 0.3;
+  for (let i = 0; i < 6; i++) {
     platforms.push({
       x: Math.random() * 360,
-      y: 960 - i * 140,
-      width: isShort ? 60 : 96,
+      y: 960 - i * 150,
+      width: 120,
       height: 10,
       boost: Math.random() < 0.1,
       item: Math.random() < 0.15 ? ["🍌", "🍒", "🍓"][Math.floor(Math.random() * 3)] : null
@@ -143,7 +141,7 @@ function update() {
     ) {
       player.onPlatform = true;
       player.y = plat.y - player.height;
-      player.vy = plat.boost ? baseJumpForce * 1.2 : baseJumpForce;
+      player.vy = plat.boost ? baseJumpForce * 1.4 : baseJumpForce;
       player.canSlash = true;
       if (plat.item) {
         score++;
@@ -165,15 +163,15 @@ function update() {
     loseLife();
   }
 
+  // move plataformas
   platforms.forEach(p => p.y += platformSpeed);
   platforms = platforms.filter(p => p.y < canvas.height + 50);
-  while (platforms.length < 8) {
+  while (platforms.length < 6) {
     const lastY = platforms[platforms.length - 1].y;
-    const isShort = Math.random() < 0.3;
     platforms.push({
       x: Math.random() * 360,
-      y: lastY - 140,
-      width: isShort ? 60 : 96,
+      y: lastY - 150,
+      width: 120,
       height: 10,
       boost: Math.random() < 0.1,
       item: Math.random() < 0.15 ? ["🍌", "🍒", "🍓"][Math.floor(Math.random() * 3)] : null
@@ -222,7 +220,7 @@ function draw() {
     if (p.item) {
       ctx.fillStyle = "black";
       ctx.font = "16px Arial";
-      ctx.fillText(p.item, p.x + 15, p.y - 5);
+      ctx.fillText(p.item, p.x + 40, p.y - 5);
     }
   });
 }
@@ -245,8 +243,8 @@ document.addEventListener("keydown", (e) => {
 
   if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
     keyPresses[e.key] = true;
-    if (e.key === "ArrowLeft") player.x -= player.speed;
-    if (e.key === "ArrowRight") player.x += player.speed;
+    if (e.key === "ArrowLeft") player.x -= 40;
+    if (e.key === "ArrowRight") player.x += 40;
   }
 });
 
