@@ -20,8 +20,9 @@
     let stage = 1;
     let score = 0;
     let characterName = "";
-    let invincibleTimer = 3;
     let gameStarted = false;
+    let invincibleTime = 10; // 10 segundos de proteção no início
+    let timeSinceStart = 0;
 
     const characters = ["Sheidi", "Welix", "Bile", "Jerry", "Thaat"];
 
@@ -30,16 +31,14 @@
       y: 600,
       width: 40,
       height: 40,
-      vy: -12,
+      vy: 0,
+      gravity: 0.8,
+      jumpForce: -16,
       onPlatform: false,
       jumpsFailed: 0,
     };
 
-    const monster = {
-      y: 9999,
-      speed: 0.8,
-    };
-
+    const monster = { y: 9999, speed: 0.8 };
     let platforms = [];
 
     function generatePlatforms() {
@@ -58,13 +57,15 @@
     function resetPlayer() {
       player.x = 200;
       player.y = 600;
+      player.vy = -18; // pulo inicial
       player.jumpsFailed = 0;
-      monster.y = player.y + 500; // evita morte instantânea
-      invincibleTimer = 3; // 3 segundos de invencibilidade
+      monster.y = player.y + 1000;
+      timeSinceStart = 0;
       generatePlatforms();
     }
 
     function loseLife() {
+      if (timeSinceStart < invincibleTime) return;
       lives--;
       if (lives <= 0) {
         alert("GAME OVER. Recomeçando...");
@@ -89,31 +90,34 @@
     function update() {
       if (!gameStarted) return;
 
+      timeSinceStart += 1 / 60;
       timeLeft -= 1 / 60;
       if (timeLeft <= 0) nextStage();
 
-      if (invincibleTimer > 0) invincibleTimer -= 1 / 60;
-
+      // Monstro sobe
       monster.y -= monster.speed + stage * 0.2;
 
-      if (monster.y < player.y + player.height && invincibleTimer <= 0) {
+      // Verifica se o monstro pegou
+      if (monster.y < player.y + player.height && timeSinceStart >= invincibleTime) {
         loseLife();
-        invincibleTimer = 2;
       }
 
-      player.y += 4;
-      player.onPlatform = false;
+      // Gravidade e movimento vertical
+      player.vy += player.gravity;
+      player.y += player.vy;
 
+      player.onPlatform = false;
       for (const plat of platforms) {
         if (
           player.y + player.height >= plat.y &&
           player.y + player.height <= plat.y + plat.height &&
           player.x + player.width > plat.x &&
-          player.x < plat.x + plat.width
+          player.x < plat.x + plat.width &&
+          player.vy >= 0
         ) {
           player.onPlatform = true;
           player.y = plat.y - player.height;
-          player.vy = -12;
+          player.vy = player.jumpForce;
           if (plat.item) {
             score++;
             plat.item = null;
@@ -121,13 +125,17 @@
         }
       }
 
-      if (!player.onPlatform) {
-        player.jumpsFailed++;
-        if (player.jumpsFailed >= 3) loseLife();
-      } else {
-        player.jumpsFailed = 0;
+      // Se não está em plataforma e ainda está nos 10s de invencibilidade, pula automaticamente
+      if (!player.onPlatform && timeSinceStart < invincibleTime && player.y + player.height >= canvas.height) {
+        player.vy = player.jumpForce * 1.5; // força maior para subir 2 degraus
       }
 
+      // Se caiu e não está invencível
+      if (player.y + player.height > canvas.height && timeSinceStart >= invincibleTime) {
+        loseLife();
+      }
+
+      // Sobe o cenário
       platforms.forEach((p) => (p.y += 4));
     }
 
@@ -144,6 +152,7 @@
         return;
       }
 
+      // HUD
       ctx.fillStyle = "black";
       ctx.font = "16px Arial";
       ctx.fillText(
